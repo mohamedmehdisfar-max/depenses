@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mes dépenses</title>
+<style>
+:root{--bg:#f3f1ec;--card:#fffdf8;--ink:#1f2a24;--mute:#6b736d;--line:#ddd9cf;--acc:#1e6b4f;--acc2:#e8f1ec;--warn:#b3402a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a17;--card:#1d2621;--ink:#ecf0ea;--mute:#98a39b;--line:#2c3832;--acc:#4fc08f;--acc2:#1f3329;--warn:#ef8a73}}
+:root[data-theme="dark"]{--bg:#141a17;--card:#1d2621;--ink:#ecf0ea;--mute:#98a39b;--line:#2c3832;--acc:#4fc08f;--acc2:#1f3329;--warn:#ef8a73}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Georgia,"Times New Roman",serif}
+main{max-width:560px;margin:0 auto;padding:16px 16px 60px}
+h1{font-size:26px;margin:8px 0 2px}
+.sub{color:var(--mute);font:14px system-ui,sans-serif;margin:0 0 14px}
+.tot{display:flex;gap:10px;margin-bottom:14px}
+.tot div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.tot b{display:block;font-size:22px}
+.tot span{font:13px system-ui,sans-serif;color:var(--mute)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px}
+label{font:13px system-ui,sans-serif;color:var(--mute);display:block;margin:0 0 4px}
+input{width:100%;font:17px Georgia,serif;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.row{display:flex;gap:8px;margin-bottom:10px}
+.row>div:first-child{width:36%}.row>div:last-child{flex:1}
+button{font:600 15px system-ui,sans-serif;border:0;border-radius:8px;padding:12px 14px;background:var(--acc);color:#fff;cursor:pointer}
+button.alt{background:var(--acc2);color:var(--acc);border:1px solid var(--line)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}.btns button{flex:1}
+#mic.on{background:var(--warn);color:#fff}
+.hint{font:13px system-ui,sans-serif;color:var(--mute);margin:8px 0 0}
+h2{font-size:17px;margin:18px 0 6px}
+.day{font:13px system-ui,sans-serif;color:var(--mute);margin:14px 0 4px;display:flex;justify-content:space-between}
+.it{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.it .d{flex:1;min-width:0;overflow-wrap:anywhere}
+.it .a{font-weight:bold;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}
+.dot.s{background:var(--acc)}
+.x{background:none;color:var(--mute);padding:6px 8px;font-size:18px}
+.empty{color:var(--mute);text-align:center;padding:24px 0;font-style:italic}
+details{margin-top:18px}summary{cursor:pointer;font:600 15px system-ui,sans-serif}
+#prev{display:flex;align-items:center;gap:10px;margin-top:10px}#prev img{height:56px;border-radius:6px}
+.ph2{background:none;padding:0 4px;font-size:15px}
+.ov{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}.ov img{max-width:100%;max-height:75%;border-radius:8px}.ov .btns{width:100%;max-width:360px}
+#msg{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font:14px system-ui,sans-serif;opacity:0;pointer-events:none;transition:opacity .2s}
+#msg.on{opacity:1}
+</style>
+</head>
+<body>
+<main>
+<h1>Mes dépenses</h1>
+<p class="sub">Tout est gardé sur cet appareil. Fais une sauvegarde de temps en temps.</p>
+
+<div class="tot"><div><span>Aujourd’hui</span><b id="tDay">0</b></div><div><span>Ce mois</span><b id="tMon">0</b></div><div><span>À envoyer</span><b id="tNew">0</b></div></div>
+
+<div class="box">
+<div class="row">
+<div><label for="amt">Montant (DT)</label><input id="amt" inputmode="decimal" placeholder="12.500"></div>
+<div><label for="desc">Achat</label><input id="desc" placeholder="Pain, lait…"></div>
+</div>
+<div class="btns">
+<button id="mic" class="alt" type="button">🎤 Dicter</button>
+<button id="cam" class="alt" type="button">📷 Photo</button><input type="file" id="pic" accept="image/*" hidden>
+<button id="add" type="button">Ajouter</button>
+</div>
+<p class="hint" id="hint">Dis par exemple : « 12 dinars pain et lait ».</p>
+<div id="prev"></div>
+</div>
+
+<div class="box">
+<label for="ph">Numéro de ta femme (WhatsApp)</label>
+<input id="ph" inputmode="tel" placeholder="98 123 456">
+<div class="btns" style="margin-top:10px">
+<button id="wa" type="button">Envoyer sur WhatsApp</button>
+<button id="sh" class="alt" type="button">SMS / autre</button>
+</div>
+<p class="hint">Envoie seulement les dépenses pas encore envoyées, avec le total.</p>
+</div>
+
+<h2>Historique</h2>
+<div id="list"></div>
+
+<details>
+<summary>Sauvegarde et export</summary>
+<div class="btns" style="margin-top:10px">
+<button class="alt" id="exJ" type="button">Sauvegarde (.json)</button>
+<button class="alt" id="exC" type="button">Export Excel (.csv)</button>
+<button class="alt" id="imp" type="button">Restaurer</button>
+</div>
+<input type="file" id="file" accept=".json" hidden>
+</details>
+</main>
+<div id="msg" role="status"></div>
+
+<script>
+const K='depenses_v1',P='depenses_tel';
+let E=[];
+try{E=JSON.parse(localStorage.getItem(K)||'[]')}catch(e){E=[]}
+const $=id=>document.getElementById(id);
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(E))}catch(e){toast('Sauvegarde impossible : fais un export')}};
+const f=n=>(Math.round(n*1000)/1000).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:3})+' DT';
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(t){const m=$('msg');m.textContent=t;m.classList.add('on');setTimeout(()=>m.classList.remove('on'),2200)}
+try{$('ph').value=localStorage.getItem(P)||''}catch(e){}
+$('ph').addEventListener('change',()=>{try{localStorage.setItem(P,$('ph').value)}catch(e){}});
+
+function parse(t){
+ t=t.replace(/(\d)\s*(virgule|,)\s*(\d)/gi,'$1.$3').replace(/(\d),(\d)/g,'$1.$2');
+ const m=t.match(/\d+(\.\d+)?/);
+ if(!m)return{a:'',d:t.trim()};
+ let d=t.replace(m[0],'').replace(/\b(dinars?|dt|tnd|millimes?)\b|دينار/gi,'').replace(/\s+/g,' ').trim();
+ return{a:m[0],d:d};
+}
+let pend=null;
+const dbp=new Promise(res=>{try{const q=indexedDB.open('depenses_photos',1);q.onupgradeneeded=()=>q.result.createObjectStore('p');q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)}catch(e){res(null)}});
+async function idb(mode,fn){const d=await dbp;if(!d)return null;return new Promise(res=>{try{const t=d.transaction('p',mode);const r=fn(t.objectStore('p'));t.oncomplete=()=>res(r?r.result:null);t.onerror=()=>res(null)}catch(e){res(null)}})}
+const putPic=(id,v)=>idb('readwrite',s=>s.put(v,id)).then(ok=>{if(!ok)toast('Photo non gardée')});
+const getPic=id=>idb('readonly',s=>s.get(id));
+const delPic=id=>idb('readwrite',s=>s.delete(id));
+function shrink(file){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const k=Math.min(1,1000/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.6))};im.onerror=()=>rej();im.src=u})}
+$('cam').onclick=()=>$('pic').click();
+$('pic').onchange=async ev=>{const fl=ev.target.files[0];ev.target.value='';if(!fl)return;try{pend=await shrink(fl);$('prev').innerHTML='<img src="'+pend+'" alt="Photo jointe"><button class="alt" id="rm" type="button">Retirer</button>';$('rm').onclick=()=>{pend=null;$('prev').innerHTML=''}}catch(e){toast('Photo illisible')}};
+async function showPic(id){const v=await getPic(id);if(!v){toast('Photo introuvable');return}const e=E.find(x=>x.id===id);const o=document.createElement('div');o.className='ov';o.innerHTML='<img src="'+v+'" alt="Photo"><div class="btns"><button id="ps" type="button">Partager</button><button class="alt" id="pc" type="button">Fermer</button></div>';document.body.appendChild(o);$('pc').onclick=()=>o.remove();$('ps').onclick=async()=>{try{const p=v.split(','),bin=atob(p[1]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const fi=new File([u8],'depense.jpg',{type:'image/jpeg'});if(navigator.canShare&&navigator.canShare({files:[fi]}))await navigator.share({files:[fi],text:e?e.d+' – '+f(e.a):''});else toast('Partage de photo non disponible')}catch(x){}}}
+function add(){
+ const a=parseFloat(($('amt').value||'').replace(',','.'));
+ if(!(a>0)){toast('Entre un montant');$('amt').focus();return}
+ const id=Date.now()+''+Math.floor(Math.random()*1000);E.push({id:id,a:a,d:$('desc').value.trim()||'Sans détail',day:today(),t:new Date().toISOString(),sent:false,p:!!pend});if(pend){putPic(id,pend);pend=null;$('prev').innerHTML=''}
+ save();$('amt').value='';$('desc').value='';render();toast('Ajouté');
+}
+$('add').onclick=add;
+$('desc').addEventListener('keydown',e=>{if(e.key==='Enter')add()});
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null;
+$('mic').onclick=()=>{
+ if(!SR){toast('Dictée non disponible ici : utilise le micro du clavier');return}
+ if(rec){rec.stop();return}
+ rec=new SR();rec.lang='fr-FR';rec.interimResults=false;
+ rec.onstart=()=>{$('mic').classList.add('on');$('mic').textContent='⏹ Écoute…'};
+ rec.onresult=ev=>{const p=parse(ev.results[0][0].transcript);$('amt').value=p.a;$('desc').value=p.d;$('hint').textContent='Vérifie puis appuie sur Ajouter.'};
+ rec.onerror=()=>toast('Micro refusé ou indisponible');
+ rec.onend=()=>{rec=null;$('mic').classList.remove('on');$('mic').textContent='🎤 Dicter'};
+ try{rec.start()}catch(e){rec=null}
+};
+
+function del(id){
+ const e=E.find(x=>x.id===id);if(!e)return;
+ if(confirm('Supprimer « '+e.d+' » ('+f(e.a)+') ?')){E=E.filter(x=>x.id!==id);delPic(id);save();render()}
+}
+function render(){
+ const td=today(),mo=td.slice(0,7);
+ let sd=0,sm=0,sn=0;
+ E.forEach(e=>{if(e.day===td)sd+=e.a;if(e.day.slice(0,7)===mo)sm+=e.a;if(!e.sent)sn+=e.a});
+ $('tDay').textContent=f(sd);$('tMon').textContent=f(sm);$('tNew').textContent=f(sn);
+ if(!E.length){$('list').innerHTML='<div class="empty">Rien pour l’instant. Ajoute ta première dépense.</div>';return}
+ const days={};[...E].sort((a,b)=>b.t.localeCompare(a.t)).forEach(e=>(days[e.day]=days[e.day]||[]).push(e));
+ $('list').innerHTML=Object.keys(days).map(k=>{
+  const tot=days[k].reduce((s,e)=>s+e.a,0);
+  const lbl=new Date(k+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  return '<div class="day"><span>'+lbl+'</span><span>'+f(tot)+'</span></div>'+days[k].map(e=>
+   '<div class="it"><span class="dot'+(e.sent?' s':'')+'" title="'+(e.sent?'Envoyé':'Pas envoyé')+'"></span><div class="d">'+esc(e.d)+(e.p?' <button class="ph2" data-p="'+e.id+'" aria-label="Voir la photo">📷</button>':'')+'</div><div class="a">'+f(e.a)+'</div><button class="x" aria-label="Supprimer" data-id="'+e.id+'">×</button></div>').join('');
+ }).join('');
+ document.querySelectorAll('.x').forEach(b=>b.onclick=()=>del(b.dataset.id));
+ document.querySelectorAll('.ph2').forEach(b=>b.onclick=()=>showPic(b.dataset.p));
+}
+
+function summary(){
+ const n=E.filter(e=>!e.sent);
+ if(!n.length)return null;
+ const tot=n.reduce((s,e)=>s+e.a,0);
+ const lines=n.map(e=>'• '+new Date(e.day+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' : '+e.d+' – '+f(e.a));
+ const mo=today().slice(0,7);
+ const month=E.filter(e=>e.day.slice(0,7)===mo).reduce((s,e)=>s+e.a,0);
+ return{n:n,text:'Dépenses :\n'+lines.join('\n')+'\n\nTotal envoyé : '+f(tot)+'\nTotal du mois : '+f(month)};
+}
+function markSent(n){const ids=new Set(n.map(e=>e.id));E.forEach(e=>{if(ids.has(e.id))e.sent=true});save();render()}
+$('wa').onclick=()=>{
+ const s=summary();if(!s){toast('Tout est déjà envoyé');return}
+ let p=$('ph').value.replace(/\D/g,'');
+ if(p.length===8)p='216'+p;
+ const url='https://wa.me/'+p+'?text='+encodeURIComponent(s.text);
+ window.open(url,'_blank');
+ setTimeout(()=>{if(confirm('Le message est parti sur WhatsApp ? Je marque ces dépenses comme envoyées.'))markSent(s.n)},800);
+};
+$('sh').onclick=async()=>{
+ const s=summary();if(!s){toast('Tout est déjà envoyé');return}
+ if(navigator.share){try{await navigator.share({text:s.text});markSent(s.n)}catch(e){}}
+ else{try{await navigator.clipboard.writeText(s.text);toast('Texte copié : colle-le dans un message');markSent(s.n)}catch(e){toast('Partage non disponible')}}
+};
+
+function dl(name,txt,type){const b=new Blob([txt],{type:type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Fichier prêt')}
+$('exJ').onclick=async()=>{const ph={};for(const e of E){if(e.p){const v=await getPic(e.id);if(v)ph[e.id]=v}}dl('depenses-sauvegarde.json',JSON.stringify({v:2,E:E,ph:ph}),'application/json')};
+$('exC').onclick=()=>dl('depenses.csv','\ufeffdate;achat;montant;envoyé\n'+E.map(e=>[e.day,'"'+e.d.replace(/"/g,'""')+'"',String(e.a).replace('.',','),e.sent?'oui':'non'].join(';')).join('\n'),'text/csv');
+$('imp').onclick=()=>$('file').click();
+$('file').onchange=ev=>{const r=new FileReader();r.onload=()=>{try{const raw=JSON.parse(r.result);const d=Array.isArray(raw)?raw:raw.E,ph=raw.ph||{};const ids=new Set(E.map(e=>e.id));d.forEach(e=>{if(e&&e.id&&e.a&&!ids.has(e.id)){E.push(e);if(e.p&&ph[e.id])putPic(e.id,ph[e.id])}});save();render();toast('Restauré')}catch(e){toast('Fichier invalide')}};if(ev.target.files[0])r.readAsText(ev.target.files[0])};
+
+render();
+</script>
+</body>
+</html>
