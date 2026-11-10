@@ -40,6 +40,9 @@ h2{font-size:17px;margin:18px 0 6px}
 .x{background:none;color:var(--mute);padding:6px 8px;font-size:18px}
 .empty{color:var(--mute);text-align:center;padding:24px 0;font-style:italic}
 details{margin-top:18px}summary{cursor:pointer;font:600 15px system-ui,sans-serif}
+#prev{display:flex;align-items:center;gap:10px;margin-top:10px}#prev img{height:56px;border-radius:6px}
+.ph2{background:none;padding:0 4px;font-size:15px}
+.ov{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}.ov img{max-width:100%;max-height:75%;border-radius:8px}.ov .btns{width:100%;max-width:360px}
 #msg{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font:14px system-ui,sans-serif;opacity:0;pointer-events:none;transition:opacity .2s}
 #msg.on{opacity:1}
 </style>
@@ -58,9 +61,11 @@ details{margin-top:18px}summary{cursor:pointer;font:600 15px system-ui,sans-seri
 </div>
 <div class="btns">
 <button id="mic" class="alt" type="button">🎤 Dicter</button>
+<button id="cam" class="alt" type="button">📷 Photo</button><input type="file" id="pic" accept="image/*" hidden>
 <button id="add" type="button">Ajouter</button>
 </div>
 <p class="hint" id="hint">Dis par exemple : « 12 dinars pain et lait ».</p>
+<div id="prev"></div>
 </div>
 
 <div class="box">
@@ -108,10 +113,20 @@ function parse(t){
  let d=t.replace(m[0],'').replace(/\b(dinars?|dt|tnd|millimes?)\b|دينار/gi,'').replace(/\s+/g,' ').trim();
  return{a:m[0],d:d};
 }
+let pend=null;
+const dbp=new Promise(res=>{try{const q=indexedDB.open('depenses_photos',1);q.onupgradeneeded=()=>q.result.createObjectStore('p');q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)}catch(e){res(null)}});
+async function idb(mode,fn){const d=await dbp;if(!d)return null;return new Promise(res=>{try{const t=d.transaction('p',mode);const r=fn(t.objectStore('p'));t.oncomplete=()=>res(r?r.result:null);t.onerror=()=>res(null)}catch(e){res(null)}})}
+const putPic=(id,v)=>idb('readwrite',s=>s.put(v,id)).then(ok=>{if(!ok)toast('Photo non gardée')});
+const getPic=id=>idb('readonly',s=>s.get(id));
+const delPic=id=>idb('readwrite',s=>s.delete(id));
+function shrink(file){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const k=Math.min(1,1000/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.6))};im.onerror=()=>rej();im.src=u})}
+$('cam').onclick=()=>$('pic').click();
+$('pic').onchange=async ev=>{const fl=ev.target.files[0];ev.target.value='';if(!fl)return;try{pend=await shrink(fl);$('prev').innerHTML='<img src="'+pend+'" alt="Photo jointe"><button class="alt" id="rm" type="button">Retirer</button>';$('rm').onclick=()=>{pend=null;$('prev').innerHTML=''}}catch(e){toast('Photo illisible')}};
+async function showPic(id){const v=await getPic(id);if(!v){toast('Photo introuvable');return}const e=E.find(x=>x.id===id);const o=document.createElement('div');o.className='ov';o.innerHTML='<img src="'+v+'" alt="Photo"><div class="btns"><button id="ps" type="button">Partager</button><button class="alt" id="pc" type="button">Fermer</button></div>';document.body.appendChild(o);$('pc').onclick=()=>o.remove();$('ps').onclick=async()=>{try{const p=v.split(','),bin=atob(p[1]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const fi=new File([u8],'depense.jpg',{type:'image/jpeg'});if(navigator.canShare&&navigator.canShare({files:[fi]}))await navigator.share({files:[fi],text:e?e.d+' – '+f(e.a):''});else toast('Partage de photo non disponible')}catch(x){}}}
 function add(){
  const a=parseFloat(($('amt').value||'').replace(',','.'));
  if(!(a>0)){toast('Entre un montant');$('amt').focus();return}
- E.push({id:Date.now()+''+Math.floor(Math.random()*1000),a:a,d:$('desc').value.trim()||'Sans détail',day:today(),t:new Date().toISOString(),sent:false});
+ const id=Date.now()+''+Math.floor(Math.random()*1000);E.push({id:id,a:a,d:$('desc').value.trim()||'Sans détail',day:today(),t:new Date().toISOString(),sent:false,p:!!pend});if(pend){putPic(id,pend);pend=null;$('prev').innerHTML=''}
  save();$('amt').value='';$('desc').value='';render();toast('Ajouté');
 }
 $('add').onclick=add;
@@ -131,7 +146,7 @@ $('mic').onclick=()=>{
 
 function del(id){
  const e=E.find(x=>x.id===id);if(!e)return;
- if(confirm('Supprimer « '+e.d+' » ('+f(e.a)+') ?')){E=E.filter(x=>x.id!==id);save();render()}
+ if(confirm('Supprimer « '+e.d+' » ('+f(e.a)+') ?')){E=E.filter(x=>x.id!==id);delPic(id);save();render()}
 }
 function render(){
  const td=today(),mo=td.slice(0,7);
@@ -144,9 +159,10 @@ function render(){
   const tot=days[k].reduce((s,e)=>s+e.a,0);
   const lbl=new Date(k+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   return '<div class="day"><span>'+lbl+'</span><span>'+f(tot)+'</span></div>'+days[k].map(e=>
-   '<div class="it"><span class="dot'+(e.sent?' s':'')+'" title="'+(e.sent?'Envoyé':'Pas envoyé')+'"></span><div class="d">'+esc(e.d)+'</div><div class="a">'+f(e.a)+'</div><button class="x" aria-label="Supprimer" data-id="'+e.id+'">×</button></div>').join('');
+   '<div class="it"><span class="dot'+(e.sent?' s':'')+'" title="'+(e.sent?'Envoyé':'Pas envoyé')+'"></span><div class="d">'+esc(e.d)+(e.p?' <button class="ph2" data-p="'+e.id+'" aria-label="Voir la photo">📷</button>':'')+'</div><div class="a">'+f(e.a)+'</div><button class="x" aria-label="Supprimer" data-id="'+e.id+'">×</button></div>').join('');
  }).join('');
  document.querySelectorAll('.x').forEach(b=>b.onclick=()=>del(b.dataset.id));
+ document.querySelectorAll('.ph2').forEach(b=>b.onclick=()=>showPic(b.dataset.p));
 }
 
 function summary(){
@@ -174,10 +190,10 @@ $('sh').onclick=async()=>{
 };
 
 function dl(name,txt,type){const b=new Blob([txt],{type:type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Fichier prêt')}
-$('exJ').onclick=()=>dl('depenses-sauvegarde.json',JSON.stringify(E,null,1),'application/json');
+$('exJ').onclick=async()=>{const ph={};for(const e of E){if(e.p){const v=await getPic(e.id);if(v)ph[e.id]=v}}dl('depenses-sauvegarde.json',JSON.stringify({v:2,E:E,ph:ph}),'application/json')};
 $('exC').onclick=()=>dl('depenses.csv','\ufeffdate;achat;montant;envoyé\n'+E.map(e=>[e.day,'"'+e.d.replace(/"/g,'""')+'"',String(e.a).replace('.',','),e.sent?'oui':'non'].join(';')).join('\n'),'text/csv');
 $('imp').onclick=()=>$('file').click();
-$('file').onchange=ev=>{const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);const ids=new Set(E.map(e=>e.id));d.forEach(e=>{if(e&&e.id&&e.a&&!ids.has(e.id))E.push(e)});save();render();toast('Restauré')}catch(e){toast('Fichier invalide')}};if(ev.target.files[0])r.readAsText(ev.target.files[0])};
+$('file').onchange=ev=>{const r=new FileReader();r.onload=()=>{try{const raw=JSON.parse(r.result);const d=Array.isArray(raw)?raw:raw.E,ph=raw.ph||{};const ids=new Set(E.map(e=>e.id));d.forEach(e=>{if(e&&e.id&&e.a&&!ids.has(e.id)){E.push(e);if(e.p&&ph[e.id])putPic(e.id,ph[e.id])}});save();render();toast('Restauré')}catch(e){toast('Fichier invalide')}};if(ev.target.files[0])r.readAsText(ev.target.files[0])};
 
 render();
 </script>
